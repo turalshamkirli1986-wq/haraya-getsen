@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Haraya Getsen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .chat-bubble-user { background: #f59e0b; color: white; border-radius: 20px 20px 4px 20px; }
+    .chat-bubble-ai { background: #f1f5f9; color: #0f172a; border-radius: 20px 20px 20px 4px; }
+    .tab-active { border-bottom: 3px solid #f59e0b; color: #f59e0b; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+  <!-- HEADER (eyni) -->
+  <div class="max-w-5xl mx-auto px-4 py-6 flex items-center justify-between border-b">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl">✈️</div>
+      <h1 class="text-3xl font-semibold tracking-tight">Haraya <span class="text-orange-500">Getsen</span></h1>
+    </div>
+    <button onclick="getUserLocation()" class="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-5 py-2 rounded-3xl font-medium hover:bg-emerald-200">
+      <i class="fa-solid fa-location-dot"></i> 📍 Mənim yerim
+    </button>
+  </div>
+
+  <div class="max-w-5xl mx-auto px-4 py-10 text-center">
+    <h2 class="text-5xl font-bold leading-tight text-slate-900">Hər şəhər haqqında <span class="text-orange-500">AI ilə danış</span></h2>
+    <p class="mt-4 text-xl text-slate-600">Şəhər yaz — video feed, turistik yerlər, taksi, booking — hamısı bir yerdə.</p>
+  </div>
+
+  <div class="max-w-2xl mx-auto px-4 mb-10">
+    <div class="relative">
+      <input id="searchInput" type="text" placeholder="Şəhər axtar... Dubai, Paris, Tokyo..." class="w-full px-6 py-5 text-lg border border-slate-300 rounded-3xl focus:outline-none focus:border-orange-400 shadow-sm pl-14">
+      <i class="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 text-2xl"></i>
+      <button onclick="filterCities()" class="absolute right-3 top-1/2 -translate-y-1/2 bg-orange-500 text-white px-8 py-4 rounded-3xl font-medium hover:bg-orange-600">Axtar</button>
+    </div>
+  </div>
+
+  <div id="nearbySection" class="max-w-6xl mx-auto px-4 hidden pb-8">
+    <h3 class="text-2xl font-semibold mb-4 flex items-center gap-3"><span>📍 Yaxınlıqda turistik yerlər</span></h3>
+    <div id="nearbyGrid" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+  </div>
+
+  <div class="max-w-6xl mx-auto px-4 pb-20">
+    <h3 class="text-2xl font-semibold mb-8 flex items-center gap-3">Populyar şəhərlər</h3>
+    <div id="citiesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modal" onclick="if(event.target===this) closeModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div onclick="event.stopImmediatePropagation()" class="bg-white rounded-3xl w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden shadow-2xl">
+      <div id="modalHeader" class="px-6 py-5 border-b flex items-center gap-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white">
+        <div id="modalFlag" class="text-6xl"></div>
+        <div class="flex-1">
+          <h2 id="modalCityName" class="text-3xl font-bold"></h2>
+          <p id="modalPlaces" class="text-orange-100"></p>
+        </div>
+        <button onclick="toggleFavorite()" id="favoriteBtn" class="text-4xl">🤍</button>
+        <button onclick="sharePlace()" class="text-4xl">📤</button>
+        <button onclick="closeModal()" class="text-4xl leading-none ml-4">×</button>
+      </div>
+
+      <div class="flex border-b text-sm font-medium">
+        <button onclick="switchTab(0)" id="tab0" class="tab-active flex-1 py-4 text-center">🎥 Video Feed</button>
+        <button onclick="switchTab(1)" id="tab1" class="flex-1 py-4 text-center">🏛️ Yerlər & Restoranlar</button>
+        <button onclick="switchTab(2)" id="tab2" class="flex-1 py-4 text-center">💬 AI Chat</button>
+        <button onclick="switchTab(3)" id="tab3" class="flex-1 py-4 text-center">🗺️ Tur Planı</button>
+      </div>
+
+      <div id="tabContent" class="flex-1 overflow-auto p-6">
+        <div id="tabContent0" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        <div id="tabContent1" class="hidden space-y-6"><div id="attractionsList" class="space-y-6"></div></div>
+
+        <div id="tabContent2" class="hidden flex flex-col h-full">
+          <div class="flex gap-2 mb-4">
+            <button onclick="setAI('grok')" id="aiGrokBtn" class="flex-1 py-2 rounded-2xl bg-orange-500 text-white">Grok AI</button>
+            <button onclick="setAI('claude')" id="aiClaudeBtn" class="flex-1 py-2 rounded-2xl bg-slate-200">Claude AI</button>
+          </div>
+          <div id="chatMessages" class="flex-1 overflow-y-auto space-y-4 pr-2"></div>
+          <div class="flex gap-3 mt-4">
+            <input id="chatInput" type="text" placeholder="Sizə necə kömək edə bilərəm? (tur, taksi, video, otel...)" class="flex-1 px-6 py-4 border rounded-3xl focus:outline-none focus:border-orange-400" onkeypress="if(event.key==='Enter') sendMessage()">
+            <button onclick="sendMessage()" class="w-14 h-14 bg-orange-500 text-white rounded-3xl text-2xl">➤</button>
+          </div>
+        </div>
+
+        <div id="tabContent3" class="hidden" style="min-height:400px">
+          <button onclick="generateTour()" class="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-3xl font-semibold text-lg mb-6">🗓️ 3 günlük tur planı yarad</button>
+          <div id="tourResult" class="space-y-6"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let citiesData = [ /* eyni şəhərlər */ 
+      { name: "Dubai", flag: "🇦🇪", places: 9, videos: [{title:"Downtown Dubai 4K", url:"https://www.youtube.com/embed/xksLSOvG21A"},{title:"Dubai Drone 4K", url:"https://www.youtube.com/embed/99ZU9piXq14"}], attractions: ["Burj Khalifa", "Palm Jumeirah", "Dubai Mall"] },
+      { name: "Bakı", flag: "🇦🇿", places: 6, videos: [{title:"Flame Towers 4K", url:"https://www.youtube.com/embed/7ourEyrXDrg"}], attractions: ["Qız Qalası", "Flame Towers", "Bulvar"] },
+      { name: "Paris", flag: "🇫🇷", places: 6, videos: [{title:"Eiffel Tower Drone 4K", url:"https://www.youtube.com/embed/Qx_c1X3zfEc"}], attractions: ["Eiffel Tower", "Louvre"] },
+      { name: "İstanbul", flag: "🇹🇷", places: 7, videos: [], attractions: ["Aya Sofya"] },
+      { name: "Tokyo", flag: "🇯🇵", places: 5, videos: [], attractions: ["Shibuya"] },
+      { name: "Roma", flag: "🇮🇹", places: 6, videos: [], attractions: ["Kolizey"] }
+    ];
+
+    let currentCity = null;
+    let currentAI = 'grok';
+
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const userText = input.value.trim();
+      if (!userText || !currentCity) return;
+
+      const msg = userText.toLowerCase();
+      const chat = document.getElementById('chatMessages');
+
+      chat.innerHTML += `<div class="flex justify-end"><div class="chat-bubble-user px-5 py-3 max-w-[75%]">${userText}</div></div>`;
+      chat.scrollTop = chat.scrollHeight;
+      input.value = '';
+
+      setTimeout(() => {
+        let response = "";
+
+        if (currentAI === 'grok') {
+          // Grok — əyləncəli stil
+          if (msg.includes('tur') || msg.includes('plan') || msg.includes('3 gün')) {
+            response = `🚀 Grok: ${currentCity.name} üçün 3 günlük ən yaxşı tur planı hazır! Gün 1: Əsas attraksionlar + foto, Gün 2: Restoranlar və alış-veriş, Gün 3: Əyləncə + istirahət. İstəyirsən detallı cədvəl + xərc hesabı?`;
+          } else if (msg.includes('taksi') || msg.includes('taxi')) {
+            response = `🚕 Grok: ${currentCity.name}-də ən rahat taksi Careem və ya Bolt-dur. Orta qiymət 5-15 AZN. İndi sifariş etmək istəyirsən?`;
+          } else if (msg.includes('video') || msg.includes('feed')) {
+            response = `🎥 Grok: 4K video feed-lər hazırdır! Video Feed tab-ına keç və ya buradan açım?`;
+          } else if (msg.includes('otel') || msg.includes('booking') || msg.includes('hotel')) {
+            response = `🏨 Grok: Ən yaxşı otelləri tapdım. Büdcə və ya lüks? Booking.com linki göndərim?`;
+          } else {
+            response = `🚀 Grok: Əla sual, ${currentCity.name}! Mən hər şeyi bilirəm — tur, taksi, video, hava, restoran, alış-veriş... Nə istəyirsən? 😎`;
+          }
+        } else {
+          // Claude — peşəkar stil
+          if (msg.includes('tur') || msg.includes('plan') || msg.includes('3 gün')) {
+            response = `🤖 Claude: ${currentCity.name} üçün 3 günlük strukturlu tur planı hazırladım. Gün 1: Görməli yerlər, Gün 2: Mədəniyyət və restoranlar, Gün 3: Alış-veriş və istirahət. Detallı cədvəl və xərc hesabı istəyirsiniz?`;
+          } else if (msg.includes('taksi') || msg.includes('taxi')) {
+            response = `🤖 Claude: ${currentCity.name} şəhərində ən etibarlı taksi xidmətləri: Careem (Dubai), Bolt (Bakı, İstanbul). Orta qiymət 4-12 AZN. Əlavə məlumat lazımdır?`;
+          } else if (msg.includes('video') || msg.includes('feed')) {
+            response = `🤖 Claude: 4K keyfiyyətli video feed-lər hazırdır. Hansı yerlər haqqında video istəyirsiniz?`;
+          } else if (msg.includes('otel') || msg.includes('booking') || msg.includes('hotel')) {
+            response = `🤖 Claude: Ən yaxşı otel seçimləri tapdım. Büdcəniz nə qədərdir? Dərhal Booking.com linki göndərə bilərəm.`;
+          } else {
+            response = `🤖 Claude: Çox gözəl sual! ${currentCity.name} haqqında ən dəqiq və aktual məlumatı hazırladım. Görməli yerlər, taksi, otel, tur planı və ya başqa nə haqqında danışmaq istəyirsiniz?`;
+          }
+        }
+
+        chat.innerHTML += `<div class="flex justify-start"><div class="chat-bubble-ai px-5 py-3 max-w-[80%]">${response}</div></div>`;
+        chat.scrollTop = chat.scrollHeight;
+      }, 700);
+    }
+
+    // Qalan funksiyalar (eyni qaldı)
+    function renderCities(filtered) {
+      const grid = document.getElementById('citiesGrid');
+      grid.innerHTML = '';
+      filtered.forEach(city => {
+        const card = document.createElement('div');
+        card.className = "bg-white rounded-3xl p-6 shadow-sm hover:shadow-xl cursor-pointer transition-all";
+        card.innerHTML = `<div class="text-6xl mb-4">${city.flag}</div><h4 class="font-semibold text-2xl">${city.name}</h4><p class="text-slate-500">${city.places} turistik yer</p>`;
+        card.onclick = () => openModal(city);
+        grid.appendChild(card);
+      });
+    }
+
+    function openModal(city) {
+      currentCity = city;
+      document.getElementById('modal').classList.remove('hidden');
+      document.getElementById('modalFlag').innerHTML = city.flag;
+      document.getElementById('modalCityName').textContent = city.name;
+      document.getElementById('modalPlaces').textContent = `${city.places} turistik yer`;
+      switchTab(0);
+      const chat = document.getElementById('chatMessages');
+      chat.innerHTML = `<div class="chat-bubble-ai px-5 py-3 max-w-[80%]">Salam, ${city.name}! 👋<br>Sizə necə kömək edə bilərəm? Tur, taksi, video, otel və ya başqa?</div>`;
+    }
+
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); currentCity = null; }
+
+    function switchTab(n) {
+      document.querySelectorAll('#tabContent > div').forEach(div => div.classList.add('hidden'));
+      document.getElementById('tabContent' + n).classList.remove('hidden');
+      document.querySelectorAll('.tab-active').forEach(t => t.classList.remove('tab-active'));
+      document.getElementById('tab' + n).classList.add('tab-active');
+      if (n === 0) loadVideos();
+      if (n === 1) loadAttractions();
+    }
+
+    function loadVideos() {
+      const container = document.getElementById('tabContent0');
+      container.innerHTML = '';
+      if (!currentCity.videos || currentCity.videos.length === 0) {
+        container.innerHTML = `<p class="text-slate-500 text-center py-12">🎥 Video feed tezliklə əlavə olunacaq</p>`;
+        return;
+      }
+      currentCity.videos.forEach(v => {
+        const div = document.createElement('div');
+        div.innerHTML = `<iframe width="100%" height="220" src="${v.url}" frameborder="0" allowfullscreen class="rounded-3xl"></iframe><div class="p-4 font-medium">${v.title}</div>`;
+        container.appendChild(div);
+      });
+    }
+
+    function loadAttractions() {
+      const container = document.getElementById('attractionsList');
+      container.innerHTML = `<h4 class="font-semibold text-xl mb-4">🏛️ Turistik yerlər</h4><div class="grid grid-cols-2 gap-4">${currentCity.attractions.map(a => `<div class="bg-slate-100 rounded-2xl p-4 text-center">${a}</div>`).join('')}</div>`;
+    }
+
+    function setAI(ai) {
+      currentAI = ai;
+      document.getElementById('aiGrokBtn').classList.toggle('bg-orange-500', ai==='grok');
+      document.getElementById('aiGrokBtn').classList.toggle('text-white', ai==='grok');
+      document.getElementById('aiClaudeBtn').classList.toggle('bg-orange-500', ai==='claude');
+      document.getElementById('aiClaudeBtn').classList.toggle('text-white', ai==='claude');
+    }
+
+    function generateTour() {
+      if (!currentCity) return;
+      document.getElementById('tourResult').innerHTML = `<div class="bg-orange-50 p-6 rounded-3xl"><h3 class="font-bold text-2xl">${currentCity.name} — 3 Günlük Tur</h3><p>Gün 1: Əsas yerlər<br>Gün 2: Restoranlar<br>Gün 3: Alış-veriş</p><a href="https://booking.com" target="_blank" class="block mt-6 text-center py-4 bg-white border border-orange-500 rounded-3xl">🏨 Booking.com ilə bron et</a></div>`;
+    }
+
+    function toggleFavorite() {
+      const btn = document.getElementById('favoriteBtn');
+      btn.textContent = btn.textContent === '🤍' ? '❤️' : '🤍';
+    }
+
+    function sharePlace() { alert('📤 Paylaşıldı!'); }
+
+    function getUserLocation() {
+      document.getElementById('nearbySection').classList.remove('hidden');
+      const grid = document.getElementById('nearbyGrid');
+      grid.innerHTML = `<div onclick="openModal(citiesData[1])" class="bg-white rounded-3xl p-6 cursor-pointer"><div class="text-6xl mb-4">🇦🇿</div><h4 class="font-semibold text-xl">Bakı (Yaxınlıqda)</h4><p class="text-emerald-600">6 turistik yer</p></div>`;
+    }
+
+    function filterCities() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const filtered = citiesData.filter(c => c.name.toLowerCase().includes(query));
+      renderCities(filtered.length ? filtered : citiesData);
+    }
+
+    window.onload = () => {
+      renderCities(citiesData);
+      document.getElementById('searchInput').addEventListener('input', filterCities);
+    };
+  </script>
+</body>
+</html>
